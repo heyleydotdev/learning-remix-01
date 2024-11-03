@@ -1,3 +1,4 @@
+import type { CheckboxCheckedChangeDetails } from "@ark-ui/react"
 import type { ActionFunctionArgs, SerializeFrom } from "@remix-run/node"
 
 import { useEffect, useRef } from "react"
@@ -7,6 +8,7 @@ import { z } from "zod"
 
 import { db } from "~/.server/db"
 import { tasksTable } from "~/.server/db/schema"
+import Checkbox from "~/components/checkbox"
 import { Icons } from "~/components/icons"
 import Input from "~/components/input"
 import PendingButton from "~/components/pending-button"
@@ -68,7 +70,7 @@ function CreateForm() {
   }, [isCreating])
 
   return (
-    <div className="sticky top-14 -mx-4 mb-3 bg-gray-50 px-4 pb-3 pt-6">
+    <div className="sticky top-14 z-10 -mx-4 mb-3 bg-gray-50 px-4 pb-3 pt-6">
       <Form ref={formRef} method="POST">
         <fieldset className="grid grid-cols-[1fr_auto] gap-2 sm:gap-3" disabled={isCreating}>
           <Input name="task" placeholder="Refactor code to improve performance and readability" required autoFocus />
@@ -106,11 +108,11 @@ function TasksList() {
 function TasksListItem(task: SerializeFrom<typeof loader>["tasks"][number]) {
   const fetcher = useFetcher()
 
-  const onChangeStatus: React.ChangeEventHandler<HTMLInputElement> = (e) => {
+  const onChangeStatus = ({ checked }: CheckboxCheckedChangeDetails) => {
     const formData = new FormData()
     formData.set("intent", "toggle-status")
     formData.set("id", task.id.toString())
-    formData.set("status", e.target.checked ? "on" : "off")
+    formData.set("status", checked ? "on" : "off")
 
     fetcher.submit(formData, {
       encType: "multipart/form-data",
@@ -119,16 +121,17 @@ function TasksListItem(task: SerializeFrom<typeof loader>["tasks"][number]) {
   }
 
   return (
-    <li className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-0.5 rounded-lg border bg-white px-4 py-2.5 shadow-sm sm:grid-cols-[auto_1fr_auto]">
-      <input
-        type="checkbox"
-        className="mt-1 size-4 rounded-lg border-border accent-green-400"
-        checked={task.status === "completed"}
-        onChange={onChangeStatus}
-        disabled={fetcher.state !== "idle"}
-      />
+    <li className="isolate grid grid-cols-[auto_1fr] gap-x-4 gap-y-0.5 rounded-lg border bg-white px-4 py-2.5 shadow-sm sm:grid-cols-[auto_1fr_auto]">
+      <div className="pt-1">
+        <Checkbox
+          className="[&>div]:before:absolute [&>div]:before:-inset-3"
+          checked={task.status === "completed"}
+          onCheckedChange={onChangeStatus}
+          disabled={fetcher.state !== "idle"}
+        />
+      </div>
       <p className="text-sm/6 text-gray-950">{task.task}</p>
-      <span className="col-start-2 text-xs/6 text-gray-500">{task.relativeTime}</span>
+      <span className="col-start-2 text-xs/6 text-gray-500 sm:col-start-3">{task.relativeTime}</span>
     </li>
   )
 }
