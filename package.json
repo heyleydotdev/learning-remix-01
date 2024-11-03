@@ -8,11 +8,13 @@
     "build": "remix vite:build",
     "dev": "remix vite:dev",
     "lint": "eslint --ignore-path .gitignore --cache --cache-location ./node_modules/.cache/eslint .",
-    "start": "remix-serve ./build/server/index.js",
+    "start": "dotenv -e .env.production -- remix-serve ./build/server/*/index.js",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
     "db:push": "drizzle-kit push",
-    "db:studio": "drizzle-kit studio"
+    "db:push:prod": "dotenv -e .env.production -- drizzle-kit push",
+    "db:studio": "drizzle-kit studio",
+    "clean": "git clean -xdf build .vercel"
   },
   "dependencies": {
     "@libsql/client": "^0.14.0",
@@ -38,6 +40,7 @@
     "@typescript-eslint/parser": "^6.7.4",
     "@vercel/remix": "^2.13.1",
     "autoprefixer": "^10.4.19",
+    "dotenv-cli": "^7.4.2",
     "drizzle-kit": "^0.27.1",
     "eslint": "^8.38.0",
     "eslint-import-resolver-typescript": "^3.6.1",
