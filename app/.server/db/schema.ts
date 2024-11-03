@@ -9,6 +9,9 @@ export const createTable = sqliteTableCreator((name) => `${process.env.DATABASE_
 export const tasksTable = createTable("tasks", {
   id: integer().primaryKey({ autoIncrement: true }),
   task: text().notNull(),
+  status: text({ enum: ["pending", "completed"] })
+    .notNull()
+    .default("pending"),
   createdAt: integer({ mode: "timestamp" })
     .notNull()
     .$defaultFn(() => new Date()),

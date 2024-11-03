@@ -1,7 +1,8 @@
 import type { ActionFunctionArgs, SerializeFrom } from "@remix-run/node"
 
 import { useEffect, useRef } from "react"
-import { data, Form, json, useLoaderData, useNavigation } from "@remix-run/react"
+import { data, Form, json, useFetcher, useLoaderData, useNavigation } from "@remix-run/react"
+import { eq } from "drizzle-orm"
 import { z } from "zod"
 
 import { db } from "~/.server/db"
@@ -12,18 +13,37 @@ import PendingButton from "~/components/pending-button"
 import { timeAgo } from "~/lib/utils"
 
 export async function loader() {
-  const tasks = await db.query.tasksTable.findMany()
+  const result = await db.query.tasksTable.findMany()
+  const tasks = result.map((t) => ({ ...t, relativeTime: timeAgo(t.createdAt) }))
 
   return data({ tasks })
 }
 
 export async function action({ request }: ActionFunctionArgs) {
+  const schema = z.union([
+    z.object({ intent: z.literal("create-task"), task: z.string().min(1) }),
+    z.object({
+      intent: z.literal("toggle-status"),
+      id: z
+        .string()
+        .min(1)
+        .transform((s) => parseInt(s, 10)),
+      status: z.enum(["on", "off"]).transform((s) => (s === "on" ? "completed" : "pending")),
+    }),
+  ])
   const formData = await request.formData()
-  const data = z.object({ task: z.string().min(1) }).parse(Object.fromEntries(formData.entries()))
+  const data = schema.parse(Object.fromEntries(formData.entries()))
 
-  await db.insert(tasksTable).values(data)
-
-  return json({ success: true })
+  switch (data.intent) {
+    case "create-task":
+      await db.insert(tasksTable).values(data)
+      return json({ success: true })
+    case "toggle-status":
+      await db.update(tasksTable).set({ status: data.status }).where(eq(tasksTable.id, data.id))
+      return json({ success: true })
+    default:
+      return json({ success: false })
+  }
 }
 
 export default function Index() {
@@ -78,15 +98,51 @@ function TasksList() {
       {tasks.map((item) => (
         <TasksListItem key={item.id} {...item} />
       ))}
+      <TaskListEnd />
     </ul>
   )
 }
 
 function TasksListItem(task: SerializeFrom<typeof loader>["tasks"][number]) {
+  const fetcher = useFetcher()
+
+  const onChangeStatus: React.ChangeEventHandler<HTMLInputElement> = (e) => {
+    const formData = new FormData()
+    formData.set("intent", "toggle-status")
+    formData.set("id", task.id.toString())
+    formData.set("status", e.target.checked ? "on" : "off")
+
+    fetcher.submit(formData, {
+      encType: "multipart/form-data",
+      method: "POST",
+    })
+  }
+
   return (
-    <li className="grid grid-cols-1 gap-x-4 gap-y-0.5 rounded-lg border bg-white px-4 py-2.5 shadow-sm sm:grid-cols-[1fr_auto]">
+    <li className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-0.5 rounded-lg border bg-white px-4 py-2.5 shadow-sm sm:grid-cols-[auto_1fr_auto]">
+      <input
+        type="checkbox"
+        className="mt-1 size-4 rounded-lg border-border accent-green-400"
+        checked={task.status === "completed"}
+        onChange={onChangeStatus}
+        disabled={fetcher.state !== "idle"}
+      />
       <p className="text-sm/6 text-gray-950">{task.task}</p>
-      <span className="text-xs/6 text-gray-500">{timeAgo(task.createdAt)}</span>
+      <span className="col-start-2 text-xs/6 text-gray-500">{task.relativeTime}</span>
+    </li>
+  )
+}
+
+function TaskListEnd() {
+  const { tasks } = useLoaderData<typeof loader>()
+
+  if (tasks.length < 10) {
+    return null
+  }
+
+  return (
+    <li className="py-8">
+      <p className="text-center text-xs/6 text-gray-500">All caught up! No more tasks ahead.</p>
     </li>
   )
 }
