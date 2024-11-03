@@ -1,7 +1,7 @@
 import assert from "node:assert"
-import type { Client } from "@libsql/client/web"
+import type { Client } from "@libsql/client"
 
-import { createClient } from "@libsql/client/web"
+import { createClient } from "@libsql/client"
 import { drizzle } from "drizzle-orm/libsql"
 
 import * as schema from "~/.server/db/schema"
