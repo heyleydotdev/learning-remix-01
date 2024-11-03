@@ -12,7 +12,7 @@ export default {
     },
     extend: {
       fontFamily: {
-        sans: ["Inter", ...fontFamily.sans],
+        sans: ["InterVariable", ...fontFamily.sans],
       },
       colors: ({ colors }) => ({
         border: {
