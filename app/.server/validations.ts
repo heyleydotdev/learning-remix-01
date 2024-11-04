@@ -1,5 +1,7 @@
 import { z } from "zod"
 
+import { tasksStatusEnum } from "~/.server/db/schema"
+
 export const _intentSchema = z.enum(["create-task", "delete-task", "status-task", "populate-task"])
 
 export const _createTaskSchema = z.object({ task: z.string().min(5, "Must contain at least 5 character(s)") })
@@ -11,5 +13,5 @@ export const _deleteTaskSchema = z.object({
 })
 export const _toggleTaskSchema = z.object({
   id: _deleteTaskSchema.shape.id,
-  status: z.enum(["on", "off"]).transform((s) => (s === "on" ? "completed" : "pending")),
+  status: z.enum(tasksStatusEnum),
 })

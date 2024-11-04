@@ -184,26 +184,27 @@ function TasksListItem(task: TasksListItemProps) {
 }
 
 function ToggleStatus(task: TasksListItemProps) {
+  let status = task.status
   const fetcher = useFetcher<typeof action>({ key: `status-${task.id}` })
+
+  if (fetcher.formData?.has("status")) {
+    status = fetcher.formData.get("status") as TasksListItemProps["status"]
+  }
 
   const onCheckedChange = ({ checked }: CheckboxCheckedChangeDetails) => {
     const formData = new FormData()
     formData.set("intent", "status-task")
     formData.set("id", task.id.toString())
-    formData.set("status", checked ? "on" : "off")
+    formData.set("status", checked ? "completed" : "pending")
 
-    fetcher.submit(formData, {
-      method: "POST",
-      encType: "multipart/form-data",
-    })
+    fetcher.submit(formData, { method: "POST", encType: "multipart/form-data" })
   }
 
   return (
     <div className="pt-1">
       <Checkbox
         className="[&>div]:before:absolute [&>div]:before:-inset-3"
-        checked={task.status === "completed"}
-        disabled={fetcher.state !== "idle"}
+        checked={status === "completed"}
         onCheckedChange={onCheckedChange}
       />
     </div>
