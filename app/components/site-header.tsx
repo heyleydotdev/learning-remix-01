@@ -9,9 +9,20 @@ export default function SiteHeader() {
         </Link>
       </div>
       <div className="justify-self-end">
-        <NavLink to={"/"} className="p-2 text-sm font-medium text-gray-600 last:pr-0 aria-[current=page]:text-gray-950">
+        <NavLink
+          to={"/"}
+          className="p-2 text-sm font-medium text-gray-600 last:pr-0 hover:text-gray-950 aria-[current=page]:text-gray-950"
+        >
           Home
         </NavLink>
+        <Link
+          to={"https://github.com/heyleydotdev/learning-remix-01"}
+          className="p-2 text-sm font-medium text-gray-600 last:pr-0 hover:text-gray-950"
+          target="_blank"
+          rel="noreferrer"
+        >
+          Github
+        </Link>
       </div>
     </header>
   )
