@@ -13,7 +13,8 @@ import { _createTaskSchema } from "~/lib/validations"
 export default function TaskCreateForm() {
   const submit = useSubmit()
   const actionData = useActionData<typeof action>()
-  const formRef = useRef<React.ElementRef<typeof Form>>(null)
+
+  const inputRef = useRef<React.ElementRef<"input">>(null)
   const [optimisticError, setOptimisticError] = useState<string | null>(null)
 
   const actionError = actionData
@@ -28,7 +29,6 @@ export default function TaskCreateForm() {
   return (
     <div className="sticky top-14 z-10 -mx-4 mb-3 bg-gray-50 px-4 pb-3 pt-6">
       <Form
-        ref={formRef}
         method="POST"
         onSubmit={(e) => {
           e.preventDefault()
@@ -58,13 +58,20 @@ export default function TaskCreateForm() {
             flushSync: true,
           })
 
-          formRef.current?.reset()
+          e.currentTarget.reset()
+          inputRef.current?.focus()
         }}
       >
         <fieldset className="grid grid-cols-[1fr_auto] gap-2 sm:gap-3">
           <input type="hidden" name="intent" value="create-task" />
           <div className="space-y-2">
-            <Input name="task" placeholder="Refactor code to improve performance and readability" required autoFocus />
+            <Input
+              ref={inputRef}
+              name="task"
+              placeholder="Refactor code to improve performance and readability"
+              required
+              autoFocus
+            />
             {anyError && <p className="text-[0.8rem] font-medium text-red-600">{anyError}</p>}
           </div>
           <div>
