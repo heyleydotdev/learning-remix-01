@@ -17,7 +17,7 @@ export default function TaskList() {
   }
 
   return (
-    <ul className="grid grid-cols-1 gap-y-3">
+    <ul className="grid grid-cols-1 gap-y-2.5">
       {tasks.map((item) => (
         <TaskListItem key={item.id} {...item} />
       ))}
@@ -71,16 +71,16 @@ function TaskListItem(task: TasksLoaderData[number]) {
   const anyError = toggleError ?? deleteError
 
   return (
-    <li className="group relative isolate grid grid-cols-[auto_1fr] gap-x-4 gap-y-0.5 rounded-lg border bg-white px-4 py-2.5 shadow-sm sm:grid-cols-[auto_1fr_auto]">
+    <li className="relative isolate grid grid-cols-[auto_1fr_auto] gap-x-4 gap-y-0.5 rounded-lg border bg-white px-4 py-2.5 shadow-sm">
       <ToggleStatus {...task} />
-      <p className="text-sm/6 text-gray-950">{task.task}</p>
-      <span className="col-start-2 text-xs/6 text-gray-500 sm:col-start-3">{task.relativeTime}</span>
+      <p className="col-start-2 text-sm/6 text-gray-950">{task.task}</p>
+      <TaskDeleteButton {...task} />
+      <span className="col-start-2 text-xs/6 text-gray-500">{task.relativeTime}</span>
       {anyError && (
         <div className="col-span-2 col-start-2">
           <p className="text-[0.8rem] font-medium text-red-600">{anyError}</p>
         </div>
       )}
-      <TaskDeleteButton {...task} />
     </li>
   )
 }
@@ -119,11 +119,13 @@ function TaskDeleteButton(task: TasksLoaderData[number]) {
   })
 
   return (
-    <fetcher.Form method="POST" className="absolute right-1 top-1 hidden group-hover:inline-flex">
-      <input type="hidden" name="id" value={task.id} />
-      <Button variant={"secondary"} size={"icon"} name="intent" value="delete-task">
-        <Icons.trash className="size-4" />
-      </Button>
-    </fetcher.Form>
+    <div className="w-4">
+      <fetcher.Form method="POST" className="absolute right-1.5 top-1.5">
+        <input type="hidden" name="id" value={task.id} />
+        <Button variant={"ghost"} size={"icon"} name="intent" value="delete-task">
+          <Icons.trash className="size-4" />
+        </Button>
+      </fetcher.Form>
+    </div>
   )
 }
