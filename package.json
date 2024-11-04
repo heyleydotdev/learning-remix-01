@@ -19,6 +19,7 @@
   "dependencies": {
     "@ark-ui/react": "^4.2.0",
     "@libsql/client": "^0.14.0",
+    "@paralleldrive/cuid2": "^2.2.2",
     "@remix-run/node": "^2.13.1",
     "@remix-run/react": "^2.13.1",
     "@remix-run/serve": "^2.13.1",

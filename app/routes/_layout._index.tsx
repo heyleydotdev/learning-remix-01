@@ -1,7 +1,7 @@
 import type { CheckboxCheckedChangeDetails } from "@ark-ui/react"
 import type { ActionFunctionArgs, SerializeFrom } from "@remix-run/node"
 
-import { useEffect, useRef } from "react"
+import { createContext, useContext, useRef, useState } from "react"
 import {
   data,
   Form,
@@ -9,24 +9,31 @@ import {
   json,
   useActionData,
   useFetcher,
+  useFetchers,
   useLoaderData,
   useNavigation,
   useRouteError,
+  useSubmit,
 } from "@remix-run/react"
+import { createId } from "@paralleldrive/cuid2"
 
 import { createTaskAction, deleteTaskAction, populateListAction, toggleTaskAction } from "~/.server/actions"
 import { db } from "~/.server/db"
-import { _intentSchema } from "~/.server/validations"
 import Alert from "~/components/alert"
+import Button from "~/components/button"
 import Checkbox from "~/components/checkbox"
 import { Icons } from "~/components/icons"
 import Input from "~/components/input"
 import PendingButton from "~/components/pending-button"
-import { timeAgo } from "~/lib/utils"
+import { flattenZodFieldErrors, objectToFormData, omitKey, timeAgo } from "~/lib/utils"
+import { _createTaskSchema, _intentSchema } from "~/lib/validations"
 
 export async function loader() {
   const result = await db.query.tasksTable.findMany()
-  const tasks = result.map((t) => ({ ...t, relativeTime: timeAgo(t.createdAt) }))
+  const tasks = result.map((t) => ({
+    ...omitKey(t, "createdAt"),
+    relativeTime: timeAgo(t.createdAt),
+  }))
 
   return data({ tasks })
 }
@@ -57,6 +64,41 @@ export async function action({ request }: ActionFunctionArgs) {
   }
 }
 
+type LoaderTasks = SerializeFrom<typeof loader>["tasks"]
+type TasksListContextValues = { tasks: LoaderTasks }
+
+const TasksListContext = createContext<TasksListContextValues>({} as TasksListContextValues)
+const useTasksList = () => {
+  const context = useContext(TasksListContext)
+  if (!context) {
+    throw new Error("useTasksList should be used within <TasksListProvider>")
+  }
+  return context
+}
+
+function TasksListProvider({ children }: React.PropsWithChildren) {
+  const { tasks: tasksRaw } = useLoaderData<typeof loader>()
+  const fetchers = useFetchers()
+
+  const pendingTasks: LoaderTasks = fetchers
+    .filter((f) => f.formData?.has("intent") && f.formData.get("intent") === "create-task")
+    .map((f) => {
+      return {
+        id: String(f.formData?.get("id")),
+        task: String(f.formData?.get("task")),
+        status: String(f.formData?.get("status")) as LoaderTasks[number]["status"],
+        relativeTime: String(f.formData?.get("relativeTime")),
+      }
+    })
+
+  const tasks = new Map<string, LoaderTasks[number]>()
+  for (const task of [...tasksRaw, ...pendingTasks]) {
+    tasks.set(task.id, task)
+  }
+
+  return <TasksListContext.Provider value={{ tasks: [...tasks.values()] }}>{children}</TasksListContext.Provider>
+}
+
 export function ErrorBoundary() {
   const error = useRouteError()
   const errorMessage = isRouteErrorResponse(error)
@@ -72,46 +114,77 @@ export function ErrorBoundary() {
 
 export default function Index() {
   return (
-    <div className="grid grid-cols-1 pb-20">
-      <CreateForm />
-      <TasksList />
-    </div>
+    <TasksListProvider>
+      <div className="grid grid-cols-1 pb-20">
+        <CreateForm />
+        <TasksList />
+      </div>
+    </TasksListProvider>
   )
 }
 
 function CreateForm() {
-  const navigation = useNavigation()
+  const submit = useSubmit()
   const actionData = useActionData<typeof action>()
-  const isCreating = navigation.formData?.get("intent") === "create-task"
-  const anyError = actionData
+  const formRef = useRef<React.ElementRef<typeof Form>>(null)
+  const [optimisticError, setOptimisticError] = useState<string | null>(null)
+
+  const actionError = actionData
     ? "error" in actionData
       ? actionData.error
       : "validations" in actionData
         ? actionData.validations?.task
         : null
     : null
-
-  const formRef = useRef<React.ElementRef<typeof Form>>(null)
-
-  useEffect(() => {
-    if (!isCreating && !anyError) {
-      formRef.current?.reset()
-    }
-  }, [anyError, isCreating])
+  const anyError = optimisticError ?? actionError
 
   return (
     <div className="sticky top-14 z-10 -mx-4 mb-3 bg-gray-50 px-4 pb-3 pt-6">
-      <Form ref={formRef} method="POST">
-        <fieldset className="grid grid-cols-[1fr_auto] gap-2 sm:gap-3" disabled={isCreating}>
+      <Form
+        ref={formRef}
+        method="POST"
+        onSubmit={(e) => {
+          e.preventDefault()
+          setOptimisticError(null)
+
+          let formData = new FormData(e.currentTarget)
+          const parse = _createTaskSchema.pick({ task: true }).safeParse(Object.fromEntries(formData.entries()))
+
+          if (!parse.success) {
+            setOptimisticError(flattenZodFieldErrors(parse.error).task ?? null)
+            return
+          }
+
+          const recordId = createId()
+          const values: LoaderTasks[number] = {
+            ...parse.data,
+            id: recordId,
+            status: "pending",
+            relativeTime: timeAgo(new Date()),
+          }
+          formData = objectToFormData(values, formData)
+
+          submit(formData, {
+            fetcherKey: `create-${recordId}`,
+            method: "POST",
+            navigate: false,
+            flushSync: true,
+          })
+
+          formRef.current?.reset()
+        }}
+      >
+        <fieldset className="grid grid-cols-[1fr_auto] gap-2 sm:gap-3">
+          <input type="hidden" name="intent" value="create-task" />
           <div className="space-y-2">
             <Input name="task" placeholder="Refactor code to improve performance and readability" required autoFocus />
             {anyError && <p className="text-[0.8rem] font-medium text-red-600">{anyError}</p>}
           </div>
           <div>
-            <PendingButton sm={"icon"} type="submit" name="intent" value="create-task" pending={isCreating}>
+            <Button type="submit" sm={"icon"}>
               <Icons.add className="size-4 sm:mr-2" />
               <span className="hidden sm:inline-block">Add to List</span>
-            </PendingButton>
+            </Button>
           </div>
         </fieldset>
       </Form>
@@ -120,7 +193,7 @@ function CreateForm() {
 }
 
 function TasksList() {
-  const { tasks } = useLoaderData<typeof loader>()
+  const { tasks } = useTasksList()
 
   if (!tasks.length) {
     return <TaskListEmpty />
@@ -225,7 +298,7 @@ function TaskDeleteButton(task: TasksListItemProps) {
 }
 
 function TaskListEnd() {
-  const { tasks } = useLoaderData<typeof loader>()
+  const { tasks } = useTasksList()
 
   if (tasks.length < 10) {
     return null

@@ -13,6 +13,23 @@ export const flattenZodFieldErrors = (error: ZodError) =>
     return acc
   }, {})
 
+export const omitKey = <T extends object, K extends keyof T>(obj: T, key: K): Omit<T, K> => {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const { [key]: _, ...rest } = obj
+  return rest
+}
+
+export const objectToFormData = (object: Record<string, string>, formData?: FormData) => {
+  formData ??= new FormData()
+  for (const key in object) {
+    if (Object.prototype.hasOwnProperty.call(object, key)) {
+      const element = object[key]!
+      formData.set(key, element)
+    }
+  }
+  return formData
+}
+
 export function timeAgo(date: Date): string {
   const now = new Date()
   const seconds = Math.floor((now.getTime() - date.getTime()) / 1000)

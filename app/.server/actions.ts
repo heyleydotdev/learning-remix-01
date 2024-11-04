@@ -3,8 +3,8 @@ import { count, eq } from "drizzle-orm"
 
 import { db } from "~/.server/db"
 import { tasksTable } from "~/.server/db/schema"
-import { _createTaskSchema, _deleteTaskSchema, _toggleTaskSchema } from "~/.server/validations"
 import { flattenZodFieldErrors } from "~/lib/utils"
+import { _createTaskSchema, _deleteTaskSchema, _toggleTaskSchema } from "~/lib/validations"
 
 export const createTaskAction = async (formData: FormData) => {
   const parse = _createTaskSchema.safeParse(Object.fromEntries(formData.entries()))
@@ -13,8 +13,8 @@ export const createTaskAction = async (formData: FormData) => {
     return json({ validations: flattenZodFieldErrors(parse.error) })
   }
 
-  const [record] = await db.insert(tasksTable).values(parse.data).returning({ id: tasksTable.id })
-  return json({ data: record?.id })
+  await db.insert(tasksTable).values(parse.data)
+  return json({ data: parse.data.id })
 }
 
 export const deleteTaskAction = async (formData: FormData) => {
