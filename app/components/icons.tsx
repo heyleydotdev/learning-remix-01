@@ -66,4 +66,19 @@ export const Icons = {
       <path d="M14 11L14 17" />
     </svg>
   ),
+  listPlus: (props) => (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={2}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+      {...props}
+    >
+      <path d="M11 12H3M16 6H3M16 18H3M18 9v6M21 12h-6" />
+    </svg>
+  ),
 } satisfies IconsType

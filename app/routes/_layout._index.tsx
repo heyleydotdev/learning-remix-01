@@ -14,7 +14,7 @@ import {
   useRouteError,
 } from "@remix-run/react"
 
-import { createTaskAction, deleteTaskAction, toggleTaskAction } from "~/.server/actions"
+import { createTaskAction, deleteTaskAction, populateListAction, toggleTaskAction } from "~/.server/actions"
 import { db } from "~/.server/db"
 import { _intentSchema } from "~/.server/validations"
 import Alert from "~/components/alert"
@@ -43,6 +43,8 @@ export async function action({ request }: ActionFunctionArgs) {
         return deleteTaskAction(formData)
       case "status-task":
         return toggleTaskAction(formData)
+      case "populate-task":
+        return populateListAction()
       default:
         return json({ error: "Bad request" })
     }
@@ -121,11 +123,7 @@ function TasksList() {
   const { tasks } = useLoaderData<typeof loader>()
 
   if (!tasks.length) {
-    return (
-      <div className="py-10">
-        <p className="text-center text-sm/6 text-gray-500">No tasks found. Add your first task!</p>
-      </div>
-    )
+    return <TaskListEmpty />
   }
 
   return (
@@ -135,6 +133,23 @@ function TasksList() {
       ))}
       <TaskListEnd />
     </ul>
+  )
+}
+
+function TaskListEmpty() {
+  const navigation = useNavigation()
+  const isPending = navigation.formData?.get("intent") === "populate-task"
+
+  return (
+    <div className="space-y-4 py-10 text-center">
+      <p className="text-center text-sm/6 text-gray-500">No tasks found. Add your first task!</p>
+      <Form method="POST">
+        <PendingButton name="intent" value="populate-task" pending={isPending}>
+          <Icons.listPlus className="mr-2 size-4" />
+          Populate List
+        </PendingButton>
+      </Form>
+    </div>
   )
 }
 
