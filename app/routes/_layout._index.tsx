@@ -214,16 +214,9 @@ function TaskDeleteButton(task: TasksListItemProps) {
   const fetcher = useFetcher<typeof action>({ key: `delete-${task.id}` })
 
   return (
-    <fetcher.Form method="POST">
+    <fetcher.Form method="POST" className="absolute right-1 top-1 hidden group-hover:inline-flex">
       <input type="hidden" name="id" value={task.id} />
-      <PendingButton
-        variant={"secondary"}
-        size={"icon"}
-        className="absolute right-1 top-1 hidden group-hover:inline-flex"
-        name="intent"
-        value="delete-task"
-        pending={fetcher.state !== "idle"}
-      >
+      <PendingButton variant={"secondary"} size={"icon"} name="intent" value="delete-task" pending={fetcher.state !== "idle"}>
         <Icons.trash className="size-4" />
       </PendingButton>
     </fetcher.Form>
