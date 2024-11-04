@@ -8,7 +8,7 @@ import Button from "~/components/button"
 import { Icons } from "~/components/icons"
 import Input from "~/components/input"
 import { flattenZodFieldErrors, objectToFormData, timeAgo } from "~/lib/utils"
-import { _createTaskSchema } from "~/lib/validations"
+import { _createTaskSchema, TASK_INTENTS } from "~/lib/validations"
 
 export default function TaskCreateForm() {
   const submit = useSubmit()
@@ -63,7 +63,7 @@ export default function TaskCreateForm() {
         }}
       >
         <fieldset className="grid grid-cols-[1fr_auto] gap-2 sm:gap-3">
-          <input type="hidden" name="intent" value="create-task" />
+          <input type="hidden" name="intent" value={TASK_INTENTS.CREATE_TASK} />
           <div className="space-y-2">
             <Input
               ref={inputRef}

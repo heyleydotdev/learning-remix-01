@@ -3,6 +3,8 @@ import type { loader, TasksLoaderData } from "~/routes/_layout._index"
 import { createContext, useContext } from "react"
 import { useFetchers, useLoaderData } from "@remix-run/react"
 
+import { TASK_INTENTS } from "~/lib/validations"
+
 export type TasksListContextValues = {
   tasks: TasksLoaderData
 }
@@ -22,7 +24,7 @@ export default function TaskListProvider({ children }: React.PropsWithChildren) 
   const fetchers = useFetchers()
 
   const pendingCreates: TasksLoaderData = fetchers
-    .filter((f) => f.formData?.has("intent") && f.formData.get("intent") === "create-task")
+    .filter((f) => f.formData?.has("intent") && f.formData.get("intent") === TASK_INTENTS.CREATE_TASK)
     .map((f) => {
       return {
         id: String(f.formData?.get("id")),
@@ -33,7 +35,7 @@ export default function TaskListProvider({ children }: React.PropsWithChildren) 
     })
 
   const pendingDeletes: string[] = fetchers
-    .filter((f) => f.formData?.has("intent") && f.formData.get("intent") === "delete-task")
+    .filter((f) => f.formData?.has("intent") && f.formData.get("intent") === TASK_INTENTS.DELETE_TASK)
     .map((f) => String(f.formData?.get("id")))
 
   const tasks = new Map<string, TasksLoaderData[number]>()

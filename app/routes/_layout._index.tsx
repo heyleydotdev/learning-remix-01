@@ -6,11 +6,12 @@ import { createTaskAction, deleteTaskAction, populateListAction, toggleTaskActio
 import { db } from "~/.server/db"
 import Alert from "~/components/alert"
 import { omitKey, timeAgo } from "~/lib/utils"
-import { _intentSchema } from "~/lib/validations"
+import { _intentSchema, TASK_INTENTS } from "~/lib/validations"
 import TaskCreateForm from "~/routes/task-create"
 import TaskList from "~/routes/task-list"
 import TaskListProvider from "~/routes/task-list-provider"
 
+export type TasksLoaderData = SerializeFrom<typeof loader>["tasks"]
 export async function loader() {
   const result = await db.query.tasksTable.findMany()
   const tasks = result.map((t) => ({
@@ -27,13 +28,13 @@ export async function action({ request }: ActionFunctionArgs) {
     const intent = _intentSchema.parse(formData.get("intent"))
 
     switch (intent) {
-      case "create-task":
+      case TASK_INTENTS.CREATE_TASK:
         return createTaskAction(formData)
-      case "delete-task":
+      case TASK_INTENTS.DELETE_TASK:
         return deleteTaskAction(formData)
-      case "status-task":
+      case TASK_INTENTS.STATUS_TASK:
         return toggleTaskAction(formData)
-      case "populate-task":
+      case TASK_INTENTS.POPULATE_TASK:
         return populateListAction()
       default:
         return json({ error: "Bad request" })
@@ -46,8 +47,6 @@ export async function action({ request }: ActionFunctionArgs) {
     return json({ error: "An unexpected error occurred. Please refresh and try again." })
   }
 }
-
-export type TasksLoaderData = SerializeFrom<typeof loader>["tasks"]
 
 export function ErrorBoundary() {
   const error = useRouteError()

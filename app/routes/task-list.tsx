@@ -7,6 +7,7 @@ import Button from "~/components/button"
 import Checkbox from "~/components/checkbox"
 import { Icons } from "~/components/icons"
 import PendingButton from "~/components/pending-button"
+import { TASK_INTENTS } from "~/lib/validations"
 import { useTaskList } from "~/routes/task-list-provider"
 
 export default function TaskList() {
@@ -28,7 +29,7 @@ export default function TaskList() {
 
 function TaskListEmpty() {
   const navigation = useNavigation()
-  const isPending = navigation.formData?.get("intent") === "populate-task"
+  const isPending = navigation.formData?.get("intent") === TASK_INTENTS.POPULATE_TASK
 
   return (
     <div className="space-y-4 py-10 text-center">
@@ -95,7 +96,7 @@ function ToggleStatus(task: TasksLoaderData[number]) {
 
   const onCheckedChange = ({ checked }: CheckboxCheckedChangeDetails) => {
     const formData = new FormData()
-    formData.set("intent", "status-task")
+    formData.set("intent", TASK_INTENTS.STATUS_TASK)
     formData.set("id", task.id.toString())
     formData.set("status", checked ? "completed" : "pending")
 
@@ -122,7 +123,7 @@ function TaskDeleteButton(task: TasksLoaderData[number]) {
     <div className="w-4">
       <fetcher.Form method="POST" className="absolute right-1.5 top-1.5">
         <input type="hidden" name="id" value={task.id} />
-        <Button variant={"ghost"} size={"icon"} name="intent" value="delete-task">
+        <Button variant={"ghost"} size={"icon"} name="intent" value={TASK_INTENTS.DELETE_TASK}>
           <Icons.trash className="size-4" />
         </Button>
       </fetcher.Form>
