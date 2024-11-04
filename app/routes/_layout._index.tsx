@@ -80,7 +80,7 @@ function TasksListProvider({ children }: React.PropsWithChildren) {
   const { tasks: tasksRaw } = useLoaderData<typeof loader>()
   const fetchers = useFetchers()
 
-  const pendingTasks: LoaderTasks = fetchers
+  const pendingCreates: LoaderTasks = fetchers
     .filter((f) => f.formData?.has("intent") && f.formData.get("intent") === "create-task")
     .map((f) => {
       return {
@@ -91,9 +91,17 @@ function TasksListProvider({ children }: React.PropsWithChildren) {
       }
     })
 
+  const pendingDeletes: string[] = fetchers
+    .filter((f) => f.formData?.has("intent") && f.formData.get("intent") === "delete-task")
+    .map((f) => String(f.formData?.get("id")))
+
   const tasks = new Map<string, LoaderTasks[number]>()
-  for (const task of [...tasksRaw, ...pendingTasks]) {
+  for (const task of [...tasksRaw, ...pendingCreates]) {
     tasks.set(task.id, task)
+  }
+
+  for (const id of pendingDeletes) {
+    tasks.delete(id)
   }
 
   return <TasksListContext.Provider value={{ tasks: [...tasks.values()] }}>{children}</TasksListContext.Provider>
@@ -285,14 +293,16 @@ function ToggleStatus(task: TasksListItemProps) {
 }
 
 function TaskDeleteButton(task: TasksListItemProps) {
-  const fetcher = useFetcher<typeof action>({ key: `delete-${task.id}` })
+  const fetcher = useFetcher<typeof action>({
+    key: `delete-${task.id}`,
+  })
 
   return (
     <fetcher.Form method="POST" className="absolute right-1 top-1 hidden group-hover:inline-flex">
       <input type="hidden" name="id" value={task.id} />
-      <PendingButton variant={"secondary"} size={"icon"} name="intent" value="delete-task" pending={fetcher.state !== "idle"}>
+      <Button variant={"secondary"} size={"icon"} name="intent" value="delete-task">
         <Icons.trash className="size-4" />
-      </PendingButton>
+      </Button>
     </fetcher.Form>
   )
 }
