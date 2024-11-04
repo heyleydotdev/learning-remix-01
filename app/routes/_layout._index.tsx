@@ -1,5 +1,5 @@
 import type { CheckboxCheckedChangeDetails } from "@ark-ui/react"
-import type { ActionFunctionArgs, SerializeFrom, TypedResponse } from "@remix-run/node"
+import type { ActionFunctionArgs, SerializeFrom } from "@remix-run/node"
 
 import { useEffect, useRef } from "react"
 import {
@@ -13,17 +13,16 @@ import {
   useNavigation,
   useRouteError,
 } from "@remix-run/react"
-import { eq } from "drizzle-orm"
-import { z, ZodError } from "zod"
 
+import { createTaskAction, deleteTaskAction, toggleTaskAction } from "~/.server/actions"
 import { db } from "~/.server/db"
-import { tasksTable } from "~/.server/db/schema"
+import { _intentSchema } from "~/.server/validations"
 import Alert from "~/components/alert"
 import Checkbox from "~/components/checkbox"
 import { Icons } from "~/components/icons"
 import Input from "~/components/input"
 import PendingButton from "~/components/pending-button"
-import { flattenZodFieldErrors, timeAgo } from "~/lib/utils"
+import { timeAgo } from "~/lib/utils"
 
 export async function loader() {
   const result = await db.query.tasksTable.findMany()
@@ -32,56 +31,27 @@ export async function loader() {
   return data({ tasks })
 }
 
-type ActionResult =
-  | {
-      success: true
-    }
-  | {
-      success: false
-      error?: string
-      validations?: Record<string, string>
-    }
-
-export async function action({ request }: ActionFunctionArgs): Promise<TypedResponse<ActionResult>> {
+export async function action({ request }: ActionFunctionArgs) {
   try {
-    const schema = z.union([
-      z.object({
-        intent: z.literal("create-task", { message: "Invalid intent" }),
-        task: z.string().min(5, "Must contain at least 5 character(s)"),
-      }),
-      z.object({
-        intent: z.literal("toggle-status", { message: "Invalid intent" }),
-        id: z
-          .string()
-          .min(1)
-          .transform((s) => parseInt(s, 10)),
-        status: z.enum(["on", "off"]).transform((s) => (s === "on" ? "completed" : "pending")),
-      }),
-    ])
     const formData = await request.formData()
-    const data = schema.parse(Object.fromEntries(formData.entries()))
+    const intent = _intentSchema.parse(formData.get("intent"))
 
-    switch (data.intent) {
+    switch (intent) {
       case "create-task":
-        await db.insert(tasksTable).values(data)
-        return json({ success: true })
-      case "toggle-status":
-        await db.update(tasksTable).set({ status: data.status }).where(eq(tasksTable.id, data.id))
-        return json({ success: true })
+        return createTaskAction(formData)
+      case "delete-task":
+        return deleteTaskAction(formData)
+      case "status-task":
+        return toggleTaskAction(formData)
       default:
-        return json({ success: true })
+        return json({ error: "Bad request" })
     }
   } catch (error) {
-    if (error instanceof ZodError) {
-      return json({
-        success: false,
-        validations: flattenZodFieldErrors(error),
-      })
+    if (process.env.NODE_ENV === "development") {
+      console.log("❌ [_index] Action:", error)
     }
-    return json({
-      success: false,
-      error: "An unexpected error occurred. Please refresh and try again.",
-    })
+
+    return json({ error: "An unexpected error occurred. Please refresh and try again." })
   }
 }
 
@@ -111,15 +81,21 @@ function CreateForm() {
   const navigation = useNavigation()
   const actionData = useActionData<typeof action>()
   const isCreating = navigation.formData?.get("intent") === "create-task"
-  const anyError = actionData?.success == false && (actionData.error ?? actionData.validations?.task)
+  const anyError = actionData
+    ? "error" in actionData
+      ? actionData.error
+      : "validations" in actionData
+        ? actionData.validations?.task
+        : null
+    : null
 
   const formRef = useRef<React.ElementRef<typeof Form>>(null)
 
   useEffect(() => {
-    if (!isCreating && actionData?.success) {
+    if (!isCreating && !anyError) {
       formRef.current?.reset()
     }
-  }, [actionData?.success, isCreating])
+  }, [anyError, isCreating])
 
   return (
     <div className="sticky top-14 z-10 -mx-4 mb-3 bg-gray-50 px-4 pb-3 pt-6">
@@ -130,7 +106,7 @@ function CreateForm() {
             {anyError && <p className="text-[0.8rem] font-medium text-red-600">{anyError}</p>}
           </div>
           <div>
-            <PendingButton type="submit" name="intent" value="create-task" pending={isCreating}>
+            <PendingButton sm={"icon"} type="submit" name="intent" value="create-task" pending={isCreating}>
               <Icons.add className="size-4 sm:mr-2" />
               <span className="hidden sm:inline-block">Add to List</span>
             </PendingButton>
@@ -162,13 +138,42 @@ function TasksList() {
   )
 }
 
-function TasksListItem(task: SerializeFrom<typeof loader>["tasks"][number]) {
-  const fetcher = useFetcher<typeof action>()
-  const anyError = fetcher.data?.success == false && (fetcher.data.error ?? fetcher.data.validations?.task)
+type TasksListItemProps = SerializeFrom<typeof loader>["tasks"][number]
 
-  const onChangeStatus = ({ checked }: CheckboxCheckedChangeDetails) => {
+function TasksListItem(task: TasksListItemProps) {
+  const toggleStatusFetcher = useFetcher<typeof action>({ key: `status-${task.id}` })
+  const deleteFetcher = useFetcher<typeof action>({ key: `delete-${task.id}` })
+
+  const toggleError = toggleStatusFetcher.data
+    ? "error" in toggleStatusFetcher.data
+      ? toggleStatusFetcher.data.error
+      : null
+    : null
+  const deleteError = deleteFetcher.data ? ("error" in deleteFetcher.data ? deleteFetcher.data.error : null) : null
+
+  const anyError = toggleError ?? deleteError
+
+  return (
+    <li className="group relative isolate grid grid-cols-[auto_1fr] gap-x-4 gap-y-0.5 rounded-lg border bg-white px-4 py-2.5 shadow-sm sm:grid-cols-[auto_1fr_auto]">
+      <ToggleStatus {...task} />
+      <p className="text-sm/6 text-gray-950">{task.task}</p>
+      <span className="col-start-2 text-xs/6 text-gray-500 sm:col-start-3">{task.relativeTime}</span>
+      {anyError && (
+        <div className="col-span-2 col-start-2">
+          <p className="text-[0.8rem] font-medium text-red-600">{anyError}</p>
+        </div>
+      )}
+      <TaskDeleteButton {...task} />
+    </li>
+  )
+}
+
+function ToggleStatus(task: TasksListItemProps) {
+  const fetcher = useFetcher<typeof action>({ key: `status-${task.id}` })
+
+  const onCheckedChange = ({ checked }: CheckboxCheckedChangeDetails) => {
     const formData = new FormData()
-    formData.set("intent", "toggle-status")
+    formData.set("intent", "status-task")
     formData.set("id", task.id.toString())
     formData.set("status", checked ? "on" : "off")
 
@@ -179,22 +184,34 @@ function TasksListItem(task: SerializeFrom<typeof loader>["tasks"][number]) {
   }
 
   return (
-    <li className="isolate grid grid-cols-[auto_1fr] gap-x-4 gap-y-0.5 rounded-lg border bg-white px-4 py-2.5 shadow-sm sm:grid-cols-[auto_1fr_auto]">
-      <div className="pt-1">
-        <Checkbox
-          className="[&>div]:before:absolute [&>div]:before:-inset-3"
-          checked={task.status === "completed"}
-          onCheckedChange={onChangeStatus}
-          disabled={fetcher.state !== "idle"}
-        />
-      </div>
-      <p className="text-sm/6 text-gray-950">{task.task}</p>
-      <span className="col-start-2 text-xs/6 text-gray-500 sm:col-start-3">{task.relativeTime}</span>
+    <div className="pt-1">
+      <Checkbox
+        className="[&>div]:before:absolute [&>div]:before:-inset-3"
+        checked={task.status === "completed"}
+        disabled={fetcher.state !== "idle"}
+        onCheckedChange={onCheckedChange}
+      />
+    </div>
+  )
+}
 
-      <div className="col-span-2 col-start-2">
-        {anyError && <p className="text-[0.8rem] font-medium text-red-600">{anyError}</p>}
-      </div>
-    </li>
+function TaskDeleteButton(task: TasksListItemProps) {
+  const fetcher = useFetcher<typeof action>({ key: `delete-${task.id}` })
+
+  return (
+    <fetcher.Form method="POST">
+      <input type="hidden" name="id" value={task.id} />
+      <PendingButton
+        variant={"secondary"}
+        size={"icon"}
+        className="absolute right-1 top-1 hidden group-hover:inline-flex"
+        name="intent"
+        value="delete-task"
+        pending={fetcher.state !== "idle"}
+      >
+        <Icons.trash className="size-4" />
+      </PendingButton>
+    </fetcher.Form>
   )
 }
 
