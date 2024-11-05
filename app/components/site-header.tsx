@@ -1,12 +1,15 @@
 import { Link, NavLink } from "@remix-run/react"
 
+import LoadingIndicator from "~/components/loading-indicator"
+
 export default function SiteHeader() {
   return (
     <header className="container sticky top-0 z-10 grid h-14 grid-cols-2 place-items-center border-b bg-gray-50">
-      <div className="justify-self-start">
+      <div className="flex items-center gap-x-2 justify-self-start">
         <Link to={"/"}>
           <span className="text-sm font-bold uppercase tracking-wide text-gray-950">TO-DO LIST</span>
         </Link>
+        <LoadingIndicator />
       </div>
       <div className="justify-self-end">
         <NavLink

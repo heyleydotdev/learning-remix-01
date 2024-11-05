@@ -122,6 +122,7 @@ function FilterButton({ filter, to, className, ...rest }: FilterButtonProps) {
   return (
     <Link
       to={{ pathname, search: searchParams.toString() }}
+      prefetch="intent"
       className={cn(
         "rounded-lg border bg-white px-2.5 py-1 text-sm/6 hover:border-border-150 hover:bg-gray-50 hover:text-gray-950 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2",
         isActive && "border-ring bg-gray-50 text-gray-950 hover:border-ring",

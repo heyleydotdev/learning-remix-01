@@ -8,6 +8,7 @@ import { _taskFilterParam, TASK_INTENTS } from "~/lib/validations"
 export default function TaskListProvider({ children }: React.PropsWithChildren) {
   const { tasks: tasksRaw } = useLoaderData<typeof loader>()
   const fetchers = useFetchers()
+
   const [searchParams] = useSearchParams()
   const filterParam = _taskFilterParam.parse(searchParams.get("filter"))
 
