@@ -93,7 +93,7 @@ export default function TaskCreateForm() {
 
 function Filters() {
   return (
-    <div className="mt-3 flex items-center gap-2">
+    <div className="mt-4 flex items-center gap-2">
       <FilterButton to="/" filter="all">
         All
       </FilterButton>
@@ -124,7 +124,7 @@ function FilterButton({ filter, to, className, ...rest }: FilterButtonProps) {
       to={{ pathname, search: searchParams.toString() }}
       prefetch="intent"
       className={cn(
-        "rounded-lg border bg-white px-2.5 py-1 text-sm/6 hover:border-border-150 hover:bg-gray-50 hover:text-gray-950 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2",
+        "rounded-lg border bg-white px-2.5 py-1 text-sm/6 shadow-sm hover:border-border-150 hover:bg-gray-50 hover:text-gray-950 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2",
         isActive && "border-ring bg-gray-50 text-gray-950 hover:border-ring",
         className
       )}
