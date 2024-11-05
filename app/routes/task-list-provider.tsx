@@ -11,16 +11,19 @@ export default function TaskListProvider({ children }: React.PropsWithChildren) 
   const [searchParams] = useSearchParams()
   const filterParam = _taskFilterParam.parse(searchParams.get("filter"))
 
-  const pendingCreates: TasksLoaderData = fetchers
-    .filter((f) => f.formData?.get("intent") === TASK_INTENTS.CREATE_TASK)
-    .map((f) => {
-      return {
-        id: String(f.formData?.get("id")),
-        task: String(f.formData?.get("task")),
-        status: String(f.formData?.get("status")) as TasksLoaderData[number]["status"],
-        relativeTime: String(f.formData?.get("relativeTime")),
-      }
-    })
+  const pendingCreates: TasksLoaderData =
+    filterParam !== "completed"
+      ? fetchers
+          .filter((f) => f.formData?.get("intent") === TASK_INTENTS.CREATE_TASK)
+          .map((f) => {
+            return {
+              id: String(f.formData?.get("id")),
+              task: String(f.formData?.get("task")),
+              status: String(f.formData?.get("status")) as TasksLoaderData[number]["status"],
+              relativeTime: String(f.formData?.get("relativeTime")),
+            }
+          })
+      : []
 
   const pendingDeletes: string[] = fetchers
     .filter((f) => f.formData?.get("intent") === TASK_INTENTS.DELETE_TASK)
