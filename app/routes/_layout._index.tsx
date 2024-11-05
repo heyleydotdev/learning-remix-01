@@ -1,4 +1,4 @@
-import type { ActionFunctionArgs, SerializeFrom } from "@remix-run/node"
+import type { ActionFunctionArgs, LoaderFunctionArgs, SerializeFrom } from "@remix-run/node"
 
 import { data, isRouteErrorResponse, json, useRouteError } from "@remix-run/react"
 
@@ -6,14 +6,20 @@ import { createTaskAction, deleteTaskAction, populateListAction, toggleTaskActio
 import { db } from "~/.server/db"
 import Alert from "~/components/alert"
 import { omitKey, timeAgo } from "~/lib/utils"
-import { _intentSchema, TASK_INTENTS } from "~/lib/validations"
+import { _intentSchema, _taskFilterParam, TASK_INTENTS } from "~/lib/validations"
 import TaskCreateForm from "~/routes/task-create"
 import TaskList from "~/routes/task-list"
 import TaskListProvider from "~/routes/task-list-provider"
 
 export type TasksLoaderData = SerializeFrom<typeof loader>["tasks"]
-export async function loader() {
-  const result = await db.query.tasksTable.findMany()
+export async function loader({ request }: LoaderFunctionArgs) {
+  const url = new URL(request.url)
+  const filterParam = _taskFilterParam.parse(url.searchParams.get("filter"))
+
+  const result = await db.query.tasksTable.findMany({
+    where: filterParam === "all" ? undefined : (fields, ops) => ops.eq(fields.status, filterParam),
+  })
+
   const tasks = result.map((t) => ({
     ...omitKey(t, "createdAt"),
     relativeTime: timeAgo(t.createdAt),

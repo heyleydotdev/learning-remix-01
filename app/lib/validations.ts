@@ -24,3 +24,5 @@ export const _toggleTaskSchema = z.object({
   id: _cuidSchema,
   status: z.enum(tasksStatusEnum),
 })
+
+export const _taskFilterParam = z.enum(["all", "pending", "completed"]).optional().default("all").catch("all")

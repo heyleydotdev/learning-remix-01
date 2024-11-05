@@ -7,8 +7,9 @@ import Button from "~/components/button"
 import Checkbox from "~/components/checkbox"
 import { Icons } from "~/components/icons"
 import PendingButton from "~/components/pending-button"
+import { useTaskList } from "~/lib/hooks/use-task-list"
+import { cn } from "~/lib/utils"
 import { TASK_INTENTS } from "~/lib/validations"
-import { useTaskList } from "~/routes/task-list-provider"
 
 export default function TaskList() {
   const { tasks } = useTaskList()
@@ -29,17 +30,21 @@ export default function TaskList() {
 
 function TaskListEmpty() {
   const navigation = useNavigation()
+  const { filterParam } = useTaskList()
+
   const isPending = navigation.formData?.get("intent") === TASK_INTENTS.POPULATE_TASK
 
   return (
     <div className="space-y-4 py-10 text-center">
       <p className="text-center text-sm/6 text-gray-500">No tasks found. Add your first task!</p>
-      <Form method="POST">
-        <PendingButton name="intent" value="populate-task" pending={isPending}>
-          <Icons.listPlus className="mr-2 size-4" />
-          Populate List
-        </PendingButton>
-      </Form>
+      {filterParam === "all" && (
+        <Form method="POST">
+          <PendingButton name="intent" value="populate-task" pending={isPending}>
+            <Icons.listPlus className="mr-2 size-4" />
+            Populate List
+          </PendingButton>
+        </Form>
+      )}
     </div>
   )
 }
@@ -58,23 +63,25 @@ function TaskListEnd() {
   )
 }
 
-function TaskListItem(task: TasksLoaderData[number]) {
-  const toggleStatusFetcher = useFetcher<typeof action>({ key: `status-${task.id}` })
-  const deleteFetcher = useFetcher<typeof action>({ key: `delete-${task.id}` })
+function TaskListItem({ id, status, ...rest }: TasksLoaderData[number]) {
+  const statusFetcher = useFetcher<typeof action>({ key: `status-${id}` })
+  const deleteFetcher = useFetcher<typeof action>({ key: `delete-${id}` })
 
-  const toggleError = toggleStatusFetcher.data
-    ? "error" in toggleStatusFetcher.data
-      ? toggleStatusFetcher.data.error
-      : null
-    : null
+  if (statusFetcher.formData?.has("status")) {
+    status = statusFetcher.formData.get("status") as TasksLoaderData[number]["status"]
+  }
+
+  const toggleError = statusFetcher.data ? ("error" in statusFetcher.data ? statusFetcher.data.error : null) : null
   const deleteError = deleteFetcher.data ? ("error" in deleteFetcher.data ? deleteFetcher.data.error : null) : null
 
   const anyError = toggleError ?? deleteError
 
+  const task = { id, status, ...rest }
+
   return (
     <li className="relative isolate grid grid-cols-[auto_1fr_auto] gap-x-4 gap-y-0.5 rounded-lg border bg-white px-4 py-2.5 shadow-sm">
       <ToggleStatus {...task} />
-      <p className="col-start-2 text-sm/6 text-gray-950">{task.task}</p>
+      <p className={cn("col-start-2 text-sm/6 text-gray-950", status === "completed" && "line-through")}>{task.task}</p>
       <TaskDeleteButton {...task} />
       <span className="col-start-2 text-xs/6 text-gray-500">{task.relativeTime}</span>
       {anyError && (
@@ -87,12 +94,7 @@ function TaskListItem(task: TasksLoaderData[number]) {
 }
 
 function ToggleStatus(task: TasksLoaderData[number]) {
-  let status = task.status
   const fetcher = useFetcher<typeof action>({ key: `status-${task.id}` })
-
-  if (fetcher.formData?.has("status")) {
-    status = fetcher.formData.get("status") as TasksLoaderData[number]["status"]
-  }
 
   const onCheckedChange = ({ checked }: CheckboxCheckedChangeDetails) => {
     const formData = new FormData()
@@ -107,7 +109,7 @@ function ToggleStatus(task: TasksLoaderData[number]) {
     <div className="pt-1">
       <Checkbox
         className="[&>div]:before:absolute [&>div]:before:-inset-3"
-        checked={status === "completed"}
+        checked={task.status === "completed"}
         onCheckedChange={onCheckedChange}
       />
     </div>

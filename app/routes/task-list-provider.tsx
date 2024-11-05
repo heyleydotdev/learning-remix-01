@@ -1,30 +1,18 @@
 import type { loader, TasksLoaderData } from "~/routes/_layout._index"
 
-import { createContext, useContext } from "react"
-import { useFetchers, useLoaderData } from "@remix-run/react"
+import { useFetchers, useLoaderData, useSearchParams } from "@remix-run/react"
 
-import { TASK_INTENTS } from "~/lib/validations"
-
-export type TasksListContextValues = {
-  tasks: TasksLoaderData
-}
-
-const TaskListContext = createContext<TasksListContextValues>({} as TasksListContextValues)
-
-export const useTaskList = () => {
-  const context = useContext(TaskListContext)
-  if (!context) {
-    throw new Error("useTaskList should be used within <TaskListProvider>")
-  }
-  return context
-}
+import { TaskListContext } from "~/lib/hooks/use-task-list"
+import { _taskFilterParam, TASK_INTENTS } from "~/lib/validations"
 
 export default function TaskListProvider({ children }: React.PropsWithChildren) {
   const { tasks: tasksRaw } = useLoaderData<typeof loader>()
   const fetchers = useFetchers()
+  const [searchParams] = useSearchParams()
+  const filterParam = _taskFilterParam.parse(searchParams.get("filter"))
 
   const pendingCreates: TasksLoaderData = fetchers
-    .filter((f) => f.formData?.has("intent") && f.formData.get("intent") === TASK_INTENTS.CREATE_TASK)
+    .filter((f) => f.formData?.get("intent") === TASK_INTENTS.CREATE_TASK)
     .map((f) => {
       return {
         id: String(f.formData?.get("id")),
@@ -35,7 +23,15 @@ export default function TaskListProvider({ children }: React.PropsWithChildren) 
     })
 
   const pendingDeletes: string[] = fetchers
-    .filter((f) => f.formData?.has("intent") && f.formData.get("intent") === TASK_INTENTS.DELETE_TASK)
+    .filter((f) => f.formData?.get("intent") === TASK_INTENTS.DELETE_TASK)
+    .map((f) => String(f.formData?.get("id")))
+
+  const pendingStatus: string[] = fetchers
+    .filter(
+      (f) =>
+        f.formData?.get("intent") === TASK_INTENTS.STATUS_TASK &&
+        (filterParam === "all" ? false : f.formData.get("status") !== filterParam)
+    )
     .map((f) => String(f.formData?.get("id")))
 
   const tasks = new Map<string, TasksLoaderData[number]>()
@@ -43,9 +39,9 @@ export default function TaskListProvider({ children }: React.PropsWithChildren) 
     tasks.set(task.id, task)
   }
 
-  for (const id of pendingDeletes) {
+  for (const id of [...pendingDeletes, ...pendingStatus]) {
     tasks.delete(id)
   }
 
-  return <TaskListContext.Provider value={{ tasks: [...tasks.values()] }}>{children}</TaskListContext.Provider>
+  return <TaskListContext.Provider value={{ tasks: [...tasks.values()], filterParam }}>{children}</TaskListContext.Provider>
 }
