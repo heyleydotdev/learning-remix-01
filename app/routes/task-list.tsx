@@ -67,14 +67,13 @@ function TaskListItem({ id, status, ...rest }: TasksLoaderData[number]) {
   const statusFetcher = useFetcher<typeof action>({ key: `status-${id}` })
   const deleteFetcher = useFetcher<typeof action>({ key: `delete-${id}` })
 
+  const toggleError = statusFetcher.data ? ("error" in statusFetcher.data ? statusFetcher.data.error : null) : null
+  const deleteError = deleteFetcher.data ? ("error" in deleteFetcher.data ? deleteFetcher.data.error : null) : null
+  const anyError = toggleError ?? deleteError
+
   if (statusFetcher.formData?.has("status")) {
     status = statusFetcher.formData.get("status") as TasksLoaderData[number]["status"]
   }
-
-  const toggleError = statusFetcher.data ? ("error" in statusFetcher.data ? statusFetcher.data.error : null) : null
-  const deleteError = deleteFetcher.data ? ("error" in deleteFetcher.data ? deleteFetcher.data.error : null) : null
-
-  const anyError = toggleError ?? deleteError
 
   const task = { id, status, ...rest }
 

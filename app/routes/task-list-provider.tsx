@@ -1,51 +1,58 @@
 import type { loader, TasksLoaderData } from "~/routes/_layout._index"
+import type { z } from "zod"
 
 import { useFetchers, useLoaderData, useSearchParams } from "@remix-run/react"
 
 import { TaskListContext } from "~/lib/hooks/use-task-list"
-import { _taskFilterParam, TASK_INTENTS } from "~/lib/validations"
+import { _optimisticTaskSchema, _taskFilterParam, TASK_INTENTS } from "~/lib/validations"
 
 export default function TaskListProvider({ children }: React.PropsWithChildren) {
   const { tasks: tasksRaw } = useLoaderData<typeof loader>()
-  const fetchers = useFetchers()
+  const tasks = new Map<string, TasksLoaderData[number]>()
 
   const [searchParams] = useSearchParams()
   const filterParam = _taskFilterParam.parse(searchParams.get("filter"))
 
-  const pendingCreates: TasksLoaderData =
-    filterParam !== "completed"
-      ? fetchers
-          .filter((f) => f.formData?.get("intent") === TASK_INTENTS.CREATE_TASK)
-          .map((f) => {
-            return {
-              id: String(f.formData?.get("id")),
-              task: String(f.formData?.get("task")),
-              status: String(f.formData?.get("status")) as TasksLoaderData[number]["status"],
-              relativeTime: String(f.formData?.get("relativeTime")),
-            }
-          })
-      : []
+  const creates = usePendingCreates(filterParam)
+  const deletes = usePendingDeletes()
+  const status = usePendingStatus(filterParam)
 
-  const pendingDeletes: string[] = fetchers
-    .filter((f) => f.formData?.get("intent") === TASK_INTENTS.DELETE_TASK)
-    .map((f) => String(f.formData?.get("id")))
-
-  const pendingStatus: string[] = fetchers
-    .filter(
-      (f) =>
-        f.formData?.get("intent") === TASK_INTENTS.STATUS_TASK &&
-        (filterParam === "all" ? false : f.formData.get("status") !== filterParam)
-    )
-    .map((f) => String(f.formData?.get("id")))
-
-  const tasks = new Map<string, TasksLoaderData[number]>()
-  for (const task of [...tasksRaw, ...pendingCreates]) {
+  for (const task of [...tasksRaw, ...creates]) {
     tasks.set(task.id, task)
   }
 
-  for (const id of [...pendingDeletes, ...pendingStatus]) {
+  for (const id of [...deletes, ...status]) {
     tasks.delete(id)
   }
 
   return <TaskListContext.Provider value={{ tasks: [...tasks.values()], filterParam }}>{children}</TaskListContext.Provider>
+}
+
+function usePendingCreates(filter: z.infer<typeof _taskFilterParam>): TasksLoaderData {
+  const fetchers = useFetchers()
+
+  if (filter === "completed") {
+    return []
+  }
+
+  return fetchers
+    .filter((f) => f.formData?.get("intent") === TASK_INTENTS.CREATE_TASK)
+    .map((f) => {
+      return _optimisticTaskSchema.parse(Object.fromEntries(f.formData!.entries()))
+    })
+}
+
+function usePendingDeletes(): string[] {
+  return useFetchers()
+    .filter((f) => f.formData?.get("intent") === TASK_INTENTS.DELETE_TASK)
+    .map((f) => _optimisticTaskSchema.pick({ id: true }).parse(Object.fromEntries(f.formData!.entries())).id)
+}
+
+function usePendingStatus(filter: z.infer<typeof _taskFilterParam>): string[] {
+  return useFetchers()
+    .filter(
+      (f) =>
+        f.formData?.get("intent") === TASK_INTENTS.STATUS_TASK && (filter === "all" ? false : f.formData.get("status") !== filter)
+    )
+    .map((f) => _optimisticTaskSchema.pick({ id: true }).parse(Object.fromEntries(f.formData!.entries())).id)
 }

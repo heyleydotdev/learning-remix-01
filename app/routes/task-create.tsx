@@ -1,4 +1,4 @@
-import type { action, TasksLoaderData } from "~/routes/_layout._index"
+import type { action } from "~/routes/_layout._index"
 import type React from "react"
 
 import { useRef, useState } from "react"
@@ -9,8 +9,8 @@ import Button from "~/components/button"
 import { Icons } from "~/components/icons"
 import Input from "~/components/input"
 import { useTaskList } from "~/lib/hooks/use-task-list"
-import { cn, flattenZodFieldErrors, objectToFormData, timeAgo } from "~/lib/utils"
-import { _createTaskSchema, TASK_INTENTS } from "~/lib/validations"
+import { cn, flattenZodFieldErrors, objectToFormData } from "~/lib/utils"
+import { _optimisticTaskSchema, TASK_INTENTS } from "~/lib/validations"
 
 export default function TaskCreateForm() {
   const submit = useSubmit()
@@ -33,28 +33,16 @@ export default function TaskCreateForm() {
     setOptimisticError(null)
 
     let formData = new FormData(e.currentTarget)
-    const parse = _createTaskSchema.pick({ task: true }).safeParse(Object.fromEntries(formData.entries()))
+    const id = createId()
+    const parse = _optimisticTaskSchema.safeParse({ id, ...Object.fromEntries(formData.entries()) })
 
     if (!parse.success) {
       setOptimisticError(flattenZodFieldErrors(parse.error).task ?? null)
       return
     }
 
-    const recordId = createId()
-    const values: TasksLoaderData[number] = {
-      ...parse.data,
-      id: recordId,
-      status: "pending",
-      relativeTime: timeAgo(new Date()),
-    }
-    formData = objectToFormData(values, formData)
-
-    submit(formData, {
-      fetcherKey: `create-${recordId}`,
-      method: "POST",
-      navigate: false,
-      flushSync: true,
-    })
+    formData = objectToFormData(parse.data, formData)
+    submit(formData, { fetcherKey: `create-${id}`, method: "POST", navigate: false, flushSync: true })
 
     e.currentTarget.reset()
     inputRef.current?.focus()
