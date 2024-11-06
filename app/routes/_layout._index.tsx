@@ -1,6 +1,6 @@
 import type { ActionFunctionArgs, LoaderFunctionArgs, SerializeFrom } from "@remix-run/node"
 
-import { data, isRouteErrorResponse, json, useRouteError } from "@remix-run/react"
+import { isRouteErrorResponse, json, useRouteError } from "@remix-run/react"
 
 import { createTaskAction, deleteTaskAction, populateListAction, toggleTaskAction } from "~/.server/actions"
 import { db } from "~/.server/db"
@@ -25,7 +25,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
     relativeTime: timeAgo(t.createdAt),
   }))
 
-  return data({ tasks })
+  return json({ tasks, filterParam })
 }
 
 export async function action({ request }: ActionFunctionArgs) {

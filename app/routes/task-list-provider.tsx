@@ -1,17 +1,15 @@
+import type { _taskFilterParam } from "~/lib/validations"
 import type { loader, TasksLoaderData } from "~/routes/_layout._index"
 import type { z } from "zod"
 
-import { useFetchers, useLoaderData, useSearchParams } from "@remix-run/react"
+import { useFetchers, useLoaderData } from "@remix-run/react"
 
 import { TaskListContext } from "~/lib/hooks/use-task-list"
-import { _optimisticTaskSchema, _taskFilterParam, TASK_INTENTS } from "~/lib/validations"
+import { _optimisticTaskSchema, TASK_INTENTS } from "~/lib/validations"
 
 export default function TaskListProvider({ children }: React.PropsWithChildren) {
-  const { tasks: tasksRaw } = useLoaderData<typeof loader>()
+  const { tasks: tasksRaw, filterParam } = useLoaderData<typeof loader>()
   const tasks = new Map<string, TasksLoaderData[number]>()
-
-  const [searchParams] = useSearchParams()
-  const filterParam = _taskFilterParam.parse(searchParams.get("filter"))
 
   const creates = usePendingCreates(filterParam)
   const deletes = usePendingDeletes()
