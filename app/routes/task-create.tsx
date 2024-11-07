@@ -1,7 +1,7 @@
 import type { action } from "~/routes/_layout._index"
 import type React from "react"
 
-import { useRef, useState } from "react"
+import { useState } from "react"
 import { Form, Link, useActionData, useSearchParams, useSubmit } from "@remix-run/react"
 import { createId } from "@paralleldrive/cuid2"
 
@@ -16,7 +16,6 @@ export default function TaskCreateForm() {
   const submit = useSubmit()
   const actionData = useActionData<typeof action>()
 
-  const inputRef = useRef<React.ElementRef<"input">>(null)
   const [optimisticError, setOptimisticError] = useState<string | null>(null)
 
   const actionError = actionData
@@ -45,7 +44,7 @@ export default function TaskCreateForm() {
     submit(formData, { fetcherKey: `create-${id}`, method: "POST", navigate: false, flushSync: true })
 
     e.currentTarget.reset()
-    inputRef.current?.focus()
+    ;(e.currentTarget.elements.namedItem("task") as HTMLInputElement | undefined)?.focus()
   }
 
   return (
@@ -55,13 +54,7 @@ export default function TaskCreateForm() {
           <fieldset className="grid grid-cols-[1fr_auto] gap-2 sm:gap-3">
             <input type="hidden" name="intent" value={TASK_INTENTS.CREATE_TASK} />
             <div className="space-y-2">
-              <Input
-                ref={inputRef}
-                name="task"
-                placeholder="Refactor code to improve performance and readability"
-                required
-                autoFocus
-              />
+              <Input name="task" placeholder="Refactor code to improve performance and readability" required autoFocus />
               {anyError && <p className="text-[0.8rem] font-medium text-red-600">{anyError}</p>}
             </div>
             <div>
