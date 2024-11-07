@@ -1,6 +1,7 @@
 import { json } from "@remix-run/react"
 import { count, eq } from "drizzle-orm"
 
+import { taskCache } from "~/.server/cache"
 import { db } from "~/.server/db"
 import { tasksTable } from "~/.server/db/schema"
 import { flattenZodFieldErrors } from "~/lib/utils"
@@ -14,6 +15,8 @@ export const createTaskAction = async (formData: FormData) => {
   }
 
   await db.insert(tasksTable).values(parse.data)
+  taskCache.clear()
+
   return json({ data: parse.data.id })
 }
 
@@ -25,6 +28,7 @@ export const deleteTaskAction = async (formData: FormData) => {
   }
 
   await db.delete(tasksTable).where(eq(tasksTable.id, parse.data.id))
+  taskCache.clear()
   return json({ data: parse.data.id })
 }
 
@@ -36,6 +40,7 @@ export const toggleTaskAction = async (formData: FormData) => {
   }
 
   await db.update(tasksTable).set({ status: parse.data.status }).where(eq(tasksTable.id, parse.data.id))
+  taskCache.clear()
   return json({ data: parse.data.id })
 }
 
@@ -71,5 +76,6 @@ export const populateListAction = async () => {
   }
 
   await db.insert(tasksTable).values(tasks)
+  taskCache.clear()
   return json({ data: tasks.length })
 }

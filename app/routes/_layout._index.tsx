@@ -3,6 +3,7 @@ import type { ActionFunctionArgs, LoaderFunctionArgs, SerializeFrom } from "@rem
 import { isRouteErrorResponse, json, useRouteError } from "@remix-run/react"
 
 import { createTaskAction, deleteTaskAction, populateListAction, toggleTaskAction } from "~/.server/actions"
+import { taskCache } from "~/.server/cache"
 import { db } from "~/.server/db"
 import Alert from "~/components/alert"
 import { omitKey, timeAgo } from "~/lib/utils"
@@ -15,6 +16,11 @@ export type TasksLoaderData = SerializeFrom<typeof loader>["tasks"]
 export async function loader({ request }: LoaderFunctionArgs) {
   const url = new URL(request.url)
   const filterParam = _taskFilterParam.parse(url.searchParams.get("filter"))
+  const cacheKey = `tasks-${filterParam}`
+
+  if (taskCache.has(cacheKey)) {
+    return json({ tasks: taskCache.get(cacheKey) ?? [], filterParam })
+  }
 
   const result = await db.query.tasksTable.findMany({
     where: filterParam === "all" ? undefined : (fields, ops) => ops.eq(fields.status, filterParam),
@@ -24,6 +30,8 @@ export async function loader({ request }: LoaderFunctionArgs) {
     ...omitKey(t, "createdAt"),
     relativeTime: timeAgo(t.createdAt),
   }))
+
+  taskCache.set(cacheKey, tasks)
 
   return json({ tasks, filterParam })
 }
